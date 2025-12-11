@@ -1,0 +1,50 @@
+name: Run Project
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:  # allows manual trigger
+
+jobs:
+  run-python:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run Application
+        run: |
+          echo "Starting script..."
+          python app.py > output.log 2>&1 || true
+          echo "Execution completed."
+
+      - name: Upload Run Logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-logs
+          path: output.log
+      
+      - name: Open Application
+        run: |
+          streamlit run app.py 
+          
