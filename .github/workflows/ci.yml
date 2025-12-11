@@ -38,13 +38,19 @@ jobs:
           python app.py > output.log 2>&1 || true
           echo "Execution completed."
 
+      - name: Run Headless Test
+        run: |
+          echo "Running app headlessly for CI sanity check..."
+          python app.py --ci-test-only || true
+       
+      - name: Test Streamlit Launch
+        run: |
+          streamlit run app.py --server.headless true &
+          sleep 5
+          pkill streamlit
+      
       - name: Upload Run Logs
         uses: actions/upload-artifact@v4
         with:
           name: run-logs
           path: output.log
-      
-      - name: Open Application
-        run: |
-          streamlit run app.py 
-          
