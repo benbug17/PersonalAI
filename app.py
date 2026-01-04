@@ -11,9 +11,6 @@ load_dotenv()
 
 
 def init_session_state():
-    """
-    Initialize Streamlit session state variables.
-    """
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
     if 'user_id' not in st.session_state:
