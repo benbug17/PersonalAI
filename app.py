@@ -2,14 +2,11 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 from audio_recorder_streamlit import audio_recorder
-
-# Import custom modules
 import db
 import groq_client
 import asr
 import tts
 
-# Load environment variables
 load_dotenv()
 
 
@@ -23,7 +20,6 @@ def init_session_state():
         st.session_state.user_id = None
     if 'username' not in st.session_state:
         st.session_state.username = None
-    # user-specific last-question/response (only set for logged-in user)
     if 'last_transcript' not in st.session_state:
         st.session_state.last_transcript = None
     if 'last_response' not in st.session_state:
@@ -41,18 +37,14 @@ def _load_user_last_conversation_into_session(user_id):
     try:
         if not user_id:
             return
-        # Try to get the most recent entry for this specific user
         history = db.get_user_history(user_id, limit=1)  # should return list of dicts
         if history and len(history) > 0:
             item = history[0]
             st.session_state.last_transcript = item.get('query')
             st.session_state.last_response = item.get('response')
-            # If you stored a tts path in DB, you can fetch it here; otherwise leave None
             st.session_state.audio_path = item.get('audio_path') if 'audio_path' in item else None
     except Exception as e:
-        # Avoid crashing the app if DB call fails; just don't prefill session values
         st.warning("Could not load previous conversation from DB.")
-        # Optionally log e somewhere
 
 
 def login_page():
@@ -78,7 +70,7 @@ def login_page():
                     st.session_state.user_id = user_id
                     st.session_state.username = login_username
 
-                    # Load this user's last conversation into session_state
+                    #user's last conversation into session_state
                     _load_user_last_conversation_into_session(user_id)
 
                     st.success(f"Welcome back, {login_username}!")
@@ -115,12 +107,10 @@ def main_app():
     """
     Main application interface for authenticated users.
     """
-    # Sidebar
     with st.sidebar:
         st.title(f"👋 {st.session_state.username}")
 
         if st.button("Logout"):
-            # Clear user-related session state on logout
             st.session_state.authenticated = False
             st.session_state.user_id = None
             st.session_state.username = None
@@ -131,7 +121,6 @@ def main_app():
 
         st.divider()
 
-        # Cache stats
         cache_stats = tts.get_cache_stats()
         st.caption(f"TTS Cache: {cache_stats['file_count']} files ({cache_stats['total_size_mb']} MB)")
 
@@ -140,21 +129,14 @@ def main_app():
             st.success("Cache cleared!")
             st.rerun()
 
-    # Main content
     st.title("🎓 Voice Learning Assistant")
     st.markdown("The Name's Rancho. Ask me anything by recording your voice!")
-
-    # Check for Groq API key
     if not os.getenv("GROQ_API_KEY"):
         st.error("⚠️ GROQ_API_KEY not found in environment variables. Please set it in your .env file.")
         st.stop()
-
-    # If we have an authenticated user but no last_transcript in session,
-    # attempt to load their most recent conversation.
     if st.session_state.authenticated and not st.session_state.last_transcript:
         _load_user_last_conversation_into_session(st.session_state.user_id)
 
-    # Voice input section
     st.subheader("🎤 Record Your Question")
 
     audio_bytes = audio_recorder(
@@ -180,31 +162,22 @@ def main_app():
 
             if response:
                 st.session_state.last_response = response
-
-                # Save to history (ensure we save under current user_id)
                 try:
                     db.save_conversation(
                         st.session_state.user_id,
                         transcript,
                         response,
-                        # optionally include audio_path if your DB schema supports it
                     )
                 except Exception:
-                    # avoid crashing; warn the user
                     st.warning("Could not save conversation to history.")
 
                 st.markdown("### 🤖 Assistant's Response")
                 st.markdown(response)
-
-                # Generate TTS
                 with st.spinner("Generating audio response..."):
                     audio_path = tts.text_to_speech(response)
 
                 if audio_path:
                     st.session_state.audio_path = audio_path
-
-                    # Play audio response (file path or bytes)
-                    # If audio_path is bytes-like, st.audio accepts it too. If it's a path, check existence.
                     try:
                         if isinstance(audio_path, (bytes, bytearray)):
                             st.audio(audio_path)
@@ -223,7 +196,6 @@ def main_app():
         else:
             st.error("Failed to transcribe audio. Please try again.")
 
-    # Display previous result if exists for the currently authenticated user only
     elif st.session_state.authenticated and st.session_state.last_transcript and st.session_state.last_response:
         st.info(f"**Previous question:** {st.session_state.last_transcript}")
         st.markdown("Just ask to learn")
@@ -237,10 +209,8 @@ def main_app():
                     if os.path.exists(st.session_state.audio_path):
                         st.audio(st.session_state.audio_path)
             except Exception:
-                # don't crash if audio can't be played
                 pass
 
-    # History section (user-specific)
     st.divider()
     st.subheader("📚 Conversation History")
 
@@ -265,7 +235,6 @@ def main():
     """
     Main entry point for the Streamlit app.
     """
-    # Configure page
     st.set_page_config(
         page_title="Voice Learning Assistant",
         page_icon="🎓",
@@ -273,13 +242,11 @@ def main():
         initial_sidebar_state="expanded"
     )
 
-    # Initialize database
     db.init_db()
 
     # Initialize session state
     init_session_state()
 
-    # Show appropriate page based on authentication
     if st.session_state.authenticated:
         main_app()
     else:
